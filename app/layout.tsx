@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Cairo, Amiri_Quran } from "next/font/google";
 import "./globals.css";
+import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 
 const cairo = Cairo({
   subsets: ["arabic", "latin"],
@@ -18,12 +19,21 @@ const amiriQuran = Amiri_Quran({
 
 export const metadata: Metadata = {
   title: "نور — تطبيق تحفيظ القرآن للأطفال",
-  description: "تطبيق يساعد الأطفال على حفظ القرآن بمساعدة الذكاء الاصطناعي، مع متابعة من الأم.",
+  description:
+    "تطبيق يساعد الأطفال على حفظ القرآن بمساعدة الذكاء الاصطناعي، مع متابعة من الأم.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
     title: "نور",
+    startupImage: ["/icon-512.svg"],
+  },
+  icons: {
+    icon: [
+      { url: "/icon-192.svg", sizes: "192x192", type: "image/svg+xml" },
+      { url: "/icon-512.svg", sizes: "512x512", type: "image/svg+xml" },
+    ],
+    apple: [{ url: "/icon-192.svg", sizes: "192x192" }],
   },
 };
 
@@ -42,7 +52,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ar" dir="rtl" className={`${cairo.variable} ${amiriQuran.variable}`}>
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        {children}
+        <ServiceWorkerRegister />
+      </body>
     </html>
   );
 }

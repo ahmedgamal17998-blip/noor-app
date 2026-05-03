@@ -18,7 +18,7 @@ export function ChildCard({
 
   return (
     <Link
-      href={`/child/${child.id}`}
+      href={`/dashboard/child/${child.id}`}
       className="block bg-white rounded-3xl p-5 shadow-soft border border-masjid/5 active:scale-[0.98] transition-transform"
     >
       <div className="flex items-center gap-4">

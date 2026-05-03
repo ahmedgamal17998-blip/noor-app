@@ -1,0 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #fef9e7;
+  --foreground: #1a2e1f;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: var(--font-cairo), system-ui, sans-serif;
+  background-image:
+    radial-gradient(circle at 10% 0%, rgba(201, 169, 97, 0.08) 0%, transparent 40%),
+    radial-gradient(circle at 90% 100%, rgba(13, 122, 63, 0.06) 0%, transparent 40%);
+  min-height: 100vh;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  .pattern-dots {
+    background-image: radial-gradient(rgba(13, 122, 63, 0.15) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+}

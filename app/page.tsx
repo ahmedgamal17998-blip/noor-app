@@ -1,12 +1,36 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { storage } from "@/lib/storage";
 
 export default function Home() {
+  const router = useRouter();
+  const [checked, setChecked] = useState(false);
+
+  useEffect(() => {
+    const mother = storage.getMother();
+    const children = storage.getChildren();
+    if (mother && children.length > 0) {
+      router.replace("/dashboard");
+    } else {
+      setChecked(true);
+    }
+  }, [router]);
+
+  if (!checked) {
+    return (
+      <main className="min-h-screen flex items-center justify-center">
+        <div className="text-masjid font-bold text-xl">نــور</div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen flex flex-col items-center justify-between px-6 py-10 max-w-md mx-auto">
       <header className="w-full flex justify-center pt-6">
-        <div className="text-gold text-sm font-semibold tracking-widest">
-          ﷽
-        </div>
+        <div className="text-gold text-sm font-semibold tracking-widest">﷽</div>
       </header>
 
       <section className="flex flex-col items-center gap-6 text-center flex-1 justify-center">
@@ -20,9 +44,7 @@ export default function Home() {
         </div>
 
         <div className="space-y-3">
-          <h1 className="text-5xl font-extrabold text-masjid-dark">
-            نــور
-          </h1>
+          <h1 className="text-5xl font-extrabold text-masjid-dark">نــور</h1>
           <p className="text-lg text-masjid font-semibold">
             رفيق طفلك في رحلة حفظ القرآن
           </p>
@@ -40,16 +62,10 @@ export default function Home() {
 
       <div className="w-full flex flex-col gap-3 pb-6">
         <Link
-          href="/signup"
+          href="/onboarding"
           className="w-full bg-masjid text-sand font-bold py-4 rounded-3xl text-center shadow-soft-lg active:scale-95 transition-transform"
         >
           ابدئي رحلتك الآن
-        </Link>
-        <Link
-          href="/login"
-          className="w-full bg-sand-dark text-masjid-dark font-semibold py-4 rounded-3xl text-center border-2 border-masjid/10 active:scale-95 transition-transform"
-        >
-          لديّ حساب بالفعل
         </Link>
         <p className="text-xs text-center text-masjid-dark/50 pt-2">
           صُنع بحب لأمهات وأطفال الأمة الإسلامية
@@ -59,7 +75,13 @@ export default function Home() {
   );
 }
 
-function Badge({ children, color }: { children: React.ReactNode; color: string }) {
+function Badge({
+  children,
+  color,
+}: {
+  children: React.ReactNode;
+  color: string;
+}) {
   return (
     <span className={`text-xs font-semibold px-3 py-1.5 rounded-full ${color}`}>
       {children}

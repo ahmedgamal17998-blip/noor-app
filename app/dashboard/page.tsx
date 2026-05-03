@@ -46,12 +46,21 @@ export default function DashboardPage() {
             {mother.name} 🌙
           </h1>
         </div>
-        <Link
-          href="/today"
-          className="bg-gold/20 text-gold-dark text-xs font-bold px-3 py-2 rounded-full"
-        >
-          📿 درس اليوم
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/content"
+            className="bg-kid-sky/20 text-blue-700 text-xs font-bold px-3 py-2 rounded-full"
+          >
+            📚 المكتبة
+          </Link>
+          <Link
+            href="/settings"
+            className="w-9 h-9 rounded-full bg-white shadow-soft flex items-center justify-center text-masjid-dark"
+            aria-label="الإعدادات"
+          >
+            ⚙️
+          </Link>
+        </div>
       </header>
 
       <section className="space-y-3 mb-6">

@@ -11,7 +11,9 @@ import {
 } from "@/components/ColoredAyah";
 import { RecordButton } from "@/components/RecordButton";
 import { Mascot } from "@/components/Mascot";
+import { BadgeUnlockModal } from "@/components/BadgeUnlockModal";
 import { compareTranscript } from "@/lib/compare-text";
+import { getEarnedBadges, getNewBadges, type Badge } from "@/lib/badges";
 
 type Phase = "loading" | "ready" | "playing" | "recorded" | "celebrating";
 
@@ -27,10 +29,20 @@ export default function ReadingPage() {
   const [words, setWords] = useState<WordResult[]>([]);
   const [feedback, setFeedback] = useState<string>("");
   const [xpGained, setXpGained] = useState(0);
+  const [newBadges, setNewBadges] = useState<Badge[]>([]);
+  const [memMode, setMemMode] = useState(false);
+  const [peeking, setPeeking] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const peekTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const surah = STARTER_SURAHS.find((s) => s.number === surahNum);
   const current = ayahs[idx];
+
+  useEffect(() => {
+    return () => {
+      if (peekTimerRef.current) clearTimeout(peekTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     const c = storage.getChild(params.childId);
@@ -103,8 +115,10 @@ export default function ReadingPage() {
     const result = compareTranscript(ayahText, transcript);
     setWords(result.words);
 
+    const before = new Set(getEarnedBadges(child!.id).map((b) => b.id));
+
     if (result.isCorrect) {
-      const xp = 10;
+      const xp = memMode ? 20 : 10;
       storage.addXP(child!.id, xp);
       storage.addSession({
         childId: child!.id,
@@ -118,6 +132,8 @@ export default function ReadingPage() {
       setXpGained(xp);
       setFeedback(mock ? "أحسنت! (تجريبي)" : "ما شاء الله، أحسنت!");
       setPhase("celebrating");
+      const newly = getNewBadges(child!.id, before);
+      if (newly.length > 0) setNewBadges(newly);
     } else {
       storage.addSession({
         childId: child!.id,
@@ -138,7 +154,19 @@ export default function ReadingPage() {
       setIdx(idx + 1);
       setPhase("ready");
     } else {
-      router.push(`/child/${params.childId}`);
+      const correctSet = new Set(
+        storage
+          .getSessions(params.childId)
+          .filter((s) => s.surahNumber === surahNum && s.isCorrect)
+          .map((s) => s.ayahNumber),
+      );
+      const surahComplete =
+        ayahs.length > 0 && correctSet.size >= ayahs.length;
+      if (surahComplete) {
+        router.push(`/child/${params.childId}/certificate/${surahNum}`);
+      } else {
+        router.push(`/child/${params.childId}`);
+      }
     }
   };
 
@@ -160,6 +188,12 @@ export default function ReadingPage() {
 
   return (
     <main className="min-h-screen flex flex-col px-5 py-5 max-w-md mx-auto">
+      {newBadges.length > 0 && (
+        <BadgeUnlockModal
+          badges={newBadges}
+          onClose={() => setNewBadges([])}
+        />
+      )}
       <header className="flex items-center justify-between mb-4">
         <button
           onClick={() => router.push(`/child/${child.id}`)}
@@ -181,15 +215,52 @@ export default function ReadingPage() {
         </div>
       </header>
 
-      <div className="h-2 bg-sand-dark rounded-full overflow-hidden mb-6">
-        <div
-          className="h-full bg-gradient-to-l from-gold to-masjid transition-all"
-          style={{ width: `${progress}%` }}
-        />
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <div className="flex-1 h-2 bg-sand-dark rounded-full overflow-hidden">
+          <div
+            className="h-full bg-gradient-to-l from-gold to-masjid transition-all"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+        <button
+          onClick={() => {
+            setMemMode((m) => !m);
+            setPeeking(false);
+          }}
+          className={`text-xs font-bold px-3 py-1.5 rounded-full transition-colors ${
+            memMode
+              ? "bg-masjid text-sand"
+              : "bg-white text-masjid-dark border border-masjid/20"
+          }`}
+        >
+          {memMode ? "🧠 وضع الحفظ" : "📖 وضع القراءة"}
+        </button>
       </div>
 
       <div className="flex-1 flex flex-col gap-4 justify-center">
-        <ColoredAyah words={words} ayahNumber={current.numberInSurah} />
+        <div
+          className={`transition-all duration-300 ${
+            memMode && !peeking && phase !== "celebrating"
+              ? "blur-md select-none"
+              : ""
+          }`}
+        >
+          <ColoredAyah words={words} ayahNumber={current.numberInSurah} />
+        </div>
+
+        {memMode && phase !== "celebrating" && (
+          <button
+            onClick={() => {
+              setPeeking(true);
+              if (peekTimerRef.current) clearTimeout(peekTimerRef.current);
+              peekTimerRef.current = setTimeout(() => setPeeking(false), 3000);
+            }}
+            disabled={peeking}
+            className="self-center bg-gold/20 text-gold-dark font-bold px-4 py-2 rounded-full text-sm active:scale-95 transition-transform disabled:opacity-60"
+          >
+            {peeking ? "👁️ ٣ ثواني..." : "👁️ بصة سريعة"}
+          </button>
+        )}
 
         {(phase === "ready" || phase === "playing") && (
           <button

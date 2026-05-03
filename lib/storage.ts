@@ -93,6 +93,22 @@ export const storage = {
       write(KEYS.children, children);
     }
   },
+  removeChild(childId: string): void {
+    const children = this.getChildren().filter((c) => c.id !== childId);
+    write(KEYS.children, children);
+    const sessions = read<Session[]>(KEYS.sessions, []).filter(
+      (s) => s.childId !== childId,
+    );
+    write(KEYS.sessions, sessions);
+    const tasks = read<DailyTask[]>(KEYS.tasks, []).filter(
+      (t) => t.childId !== childId,
+    );
+    write(KEYS.tasks, tasks);
+  },
+  resetAll(): void {
+    if (typeof window === "undefined") return;
+    Object.values(KEYS).forEach((k) => localStorage.removeItem(k));
+  },
 
   getSessions(childId?: string): Session[] {
     const all = read<Session[]>(KEYS.sessions, []);

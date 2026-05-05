@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { storage, type Mother, type Child } from "@/lib/storage";
+import { isSupabaseEnabled, signOut, getCurrentSession } from "@/lib/supabase";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -11,6 +12,7 @@ export default function SettingsPage() {
   const [children, setChildren] = useState<Child[]>([]);
   const [editing, setEditing] = useState(false);
   const [newName, setNewName] = useState("");
+  const [authed, setAuthed] = useState(false);
 
   useEffect(() => {
     const m = storage.getMother();
@@ -21,7 +23,15 @@ export default function SettingsPage() {
     setMother(m);
     setNewName(m.name);
     setChildren(storage.getChildren());
+    void getCurrentSession().then((s) => setAuthed(Boolean(s)));
   }, [router]);
+
+  const doSignOut = async () => {
+    if (!confirm("هتسجلي خروج؟ بياناتك المحفوظة على السيرفر هتفضل آمنة.")) return;
+    await signOut();
+    storage.resetAll();
+    router.replace("/");
+  };
 
   const saveMotherName = () => {
     if (!newName.trim()) return;
@@ -152,6 +162,26 @@ export default function SettingsPage() {
         </div>
       </Section>
 
+      {isSupabaseEnabled && authed && (
+        <Section title="الحساب">
+          <div className="bg-success/10 border border-success/30 rounded-3xl p-4 mb-2">
+            <p className="text-sm text-success font-bold">
+              ☁️ بياناتك متزامنة مع السيرفر
+              {mother.email ? ` (${mother.email})` : ""}
+            </p>
+            <p className="text-xs text-masjid-dark/60 mt-1">
+              تقدري تفتحي التطبيق من أي جهاز وتلاقي تقدم طفلك.
+            </p>
+          </div>
+          <button
+            onClick={doSignOut}
+            className="w-full bg-white border-2 border-wrong/30 text-wrong font-bold py-3 rounded-2xl active:scale-95 transition-transform"
+          >
+            تسجيل خروج
+          </button>
+        </Section>
+      )}
+
       <Section title="إدارة البيانات">
         <button
           onClick={resetAll}
@@ -160,7 +190,9 @@ export default function SettingsPage() {
           🗑️ مسح كل البيانات
         </button>
         <p className="text-xs text-masjid-dark/50 text-center mt-2 leading-relaxed">
-          البيانات محفوظة على جهازك بس (مش على سيرفر). مسحها يحذفها للأبد.
+          {isSupabaseEnabled && authed
+            ? "هيتم مسح البيانات من جهازك. لو حابة تحذفي السحابة، اعملي تسجيل خروج الأول."
+            : "البيانات محفوظة على جهازك بس (مش على سيرفر). مسحها يحذفها للأبد."}
         </p>
       </Section>
 

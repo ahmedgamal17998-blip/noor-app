@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { feedbackTap } from "@/lib/feedback";
 
 type State = "idle" | "recording" | "processing";
 
@@ -73,6 +74,7 @@ export function RecordButton({
 
   const handleClick = () => {
     if (disabled) return;
+    feedbackTap();
     if (state === "idle") start();
     else if (state === "recording") stop();
   };

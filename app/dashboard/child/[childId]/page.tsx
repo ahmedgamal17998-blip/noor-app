@@ -11,6 +11,7 @@ import {
 } from "@/lib/storage";
 import { getTodayTaskSuggestion } from "@/lib/azkar";
 import { STARTER_SURAHS } from "@/lib/quran-api";
+import { getChildStats, type ChildStats } from "@/lib/stats";
 
 export default function MomChildDetailPage() {
   const router = useRouter();
@@ -18,6 +19,7 @@ export default function MomChildDetailPage() {
   const [child, setChild] = useState<Child | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [task, setTask] = useState<DailyTask | null>(null);
+  const [stats, setStats] = useState<ChildStats | null>(null);
 
   const refresh = () => {
     const c = storage.getChild(params.childId);
@@ -27,6 +29,7 @@ export default function MomChildDetailPage() {
     }
     setChild(c);
     setSessions(storage.getSessions(c.id));
+    setStats(getChildStats(c.id));
     let t = storage.getTodayTask(c.id);
     if (!t) {
       t = storage.setTodayTask(c.id, getTodayTaskSuggestion());
@@ -36,6 +39,7 @@ export default function MomChildDetailPage() {
 
   useEffect(() => {
     refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.childId]);
 
   const confirm = () => {
@@ -44,7 +48,7 @@ export default function MomChildDetailPage() {
     refresh();
   };
 
-  if (!child || !task) return null;
+  if (!child || !task || !stats) return null;
 
   const today = new Date().toISOString().slice(0, 10);
   const todaySessions = sessions.filter(
@@ -88,12 +92,27 @@ export default function MomChildDetailPage() {
         </div>
       </header>
 
-      <div className="grid grid-cols-2 gap-3 mb-6">
+      <div className="grid grid-cols-2 gap-3 mb-3">
         <StatBox icon="📖" label="آيات النهارده" value={todayCorrect} />
         <StatBox
           icon="✅"
           label="إجمالي الجلسات"
-          value={sessions.filter((s) => s.isCorrect).length}
+          value={stats.totalCorrect}
+        />
+      </div>
+      <div className="grid grid-cols-3 gap-2 mb-6">
+        <StatBox icon="🔥" label="يوم متتالي" value={stats.streak} compact />
+        <StatBox
+          icon="📚"
+          label="آيات/أسبوع"
+          value={stats.ayahsThisWeek}
+          compact
+        />
+        <StatBox
+          icon="⏱️"
+          label="دقايق/أسبوع"
+          value={stats.minutesThisWeek}
+          compact
         />
       </div>
 
@@ -189,16 +208,30 @@ function StatBox({
   icon,
   label,
   value,
+  compact = false,
 }: {
   icon: string;
   label: string;
   value: number;
+  compact?: boolean;
 }) {
   return (
-    <div className="bg-white rounded-2xl p-4 shadow-soft text-center">
-      <div className="text-3xl mb-1">{icon}</div>
-      <div className="text-2xl font-bold text-masjid-dark">{value}</div>
-      <div className="text-xs text-masjid-dark/60">{label}</div>
+    <div
+      className={`bg-white rounded-2xl shadow-soft text-center ${
+        compact ? "p-3" : "p-4"
+      }`}
+    >
+      <div className={compact ? "text-xl mb-0.5" : "text-3xl mb-1"}>{icon}</div>
+      <div
+        className={`font-bold text-masjid-dark ${
+          compact ? "text-lg" : "text-2xl"
+        }`}
+      >
+        {value}
+      </div>
+      <div className={`text-masjid-dark/60 ${compact ? "text-[10px]" : "text-xs"}`}>
+        {label}
+      </div>
     </div>
   );
 }

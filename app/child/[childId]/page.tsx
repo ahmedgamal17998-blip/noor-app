@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
-import { storage, type Child } from "@/lib/storage";
+import { storage, type Child, type Session } from "@/lib/storage";
 import {
   getAllProgress,
   getLevel,
@@ -13,6 +13,7 @@ import {
 } from "@/lib/progression";
 import { getEarnedBadges } from "@/lib/badges";
 import { JourneyMap } from "@/components/JourneyMap";
+import { STARTER_SURAHS } from "@/lib/quran-api";
 
 export default function ChildJourneyPage() {
   const router = useRouter();
@@ -20,6 +21,7 @@ export default function ChildJourneyPage() {
   const [child, setChild] = useState<Child | null>(null);
   const [progress, setProgress] = useState<SurahProgress[]>([]);
   const [badgeCount, setBadgeCount] = useState(0);
+  const [lastSession, setLastSession] = useState<Session | null>(null);
 
   useEffect(() => {
     const c = storage.getChild(params.childId);
@@ -30,6 +32,7 @@ export default function ChildJourneyPage() {
     setChild(c);
     setProgress(getAllProgress(c.id));
     setBadgeCount(getEarnedBadges(c.id).length);
+    setLastSession(storage.getLastSession(c.id));
   }, [params.childId, router]);
 
   if (!child) return null;
@@ -95,6 +98,30 @@ export default function ChildJourneyPage() {
           )}
         </div>
       </section>
+
+      {lastSession && (() => {
+        const surah = STARTER_SURAHS.find(
+          (s) => s.number === lastSession.surahNumber,
+        );
+        if (!surah) return null;
+        return (
+          <Link
+            href={`/child/${child.id}/surah/${lastSession.surahNumber}`}
+            className="block bg-gradient-to-l from-gold to-gold-dark text-white rounded-3xl p-4 mb-5 shadow-soft active:scale-[0.98] transition-transform"
+          >
+            <div className="flex items-center gap-3">
+              <div className="text-3xl">▶️</div>
+              <div className="flex-1">
+                <p className="text-xs opacity-80">كملي من آخر جلسة</p>
+                <p className="font-bold font-quran text-xl">{surah.name}</p>
+                <p className="text-xs opacity-90">
+                  آخر آية: {lastSession.ayahNumber}
+                </p>
+              </div>
+            </div>
+          </Link>
+        );
+      })()}
 
       <h2 className="font-bold text-masjid-dark mb-3 px-1">
         🗺️ خريطة الرحلة

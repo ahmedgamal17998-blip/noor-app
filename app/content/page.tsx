@@ -39,6 +39,13 @@ export default function ContentHubPage() {
           desc="وضوء، صلاة، آداب يومية"
         />
         <Tile
+          href="/content/names"
+          gradient="from-kid-yellow/40 to-gold/10"
+          emoji="✨"
+          title="أسماء الله الحسنى"
+          desc="اسم في اليوم بشرح بسيط"
+        />
+        <Tile
           href="/today"
           gradient="from-gold/30 to-gold/10"
           emoji="📿"

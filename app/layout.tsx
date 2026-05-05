@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Cairo, Amiri_Quran } from "next/font/google";
 import "./globals.css";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
+import { SyncBootstrap } from "@/components/SyncBootstrap";
 
 const cairo = Cairo({
   subsets: ["arabic", "latin"],
@@ -55,6 +56,7 @@ export default function RootLayout({
       <body className="antialiased">
         {children}
         <ServiceWorkerRegister />
+        <SyncBootstrap />
       </body>
     </html>
   );

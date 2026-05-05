@@ -14,6 +14,7 @@ import { Mascot } from "@/components/Mascot";
 import { BadgeUnlockModal } from "@/components/BadgeUnlockModal";
 import { compareTranscript } from "@/lib/compare-text";
 import { getEarnedBadges, getNewBadges, type Badge } from "@/lib/badges";
+import { feedbackSuccess, feedbackError } from "@/lib/feedback";
 
 type Phase = "loading" | "ready" | "playing" | "recorded" | "celebrating";
 
@@ -55,7 +56,16 @@ export default function ReadingPage() {
     fetchSurah(surahNum)
       .then((a) => {
         setAyahs(a);
-        setWords(ayahToWords(a[0]?.text ?? ""));
+        const correctSet = new Set(
+          storage
+            .getSessions(params.childId)
+            .filter((s) => s.surahNumber === surahNum && s.isCorrect)
+            .map((s) => s.ayahNumber),
+        );
+        const resumeIdx = a.findIndex((ay) => !correctSet.has(ay.numberInSurah));
+        const startIdx = resumeIdx >= 0 ? resumeIdx : 0;
+        setIdx(startIdx);
+        setWords(ayahToWords(a[startIdx]?.text ?? ""));
         setPhase("ready");
       })
       .catch(() => setFeedback("مشكلة في تحميل السورة، حاول تاني"));
@@ -118,6 +128,7 @@ export default function ReadingPage() {
     const before = new Set(getEarnedBadges(child!.id).map((b) => b.id));
 
     if (result.isCorrect) {
+      feedbackSuccess();
       const xp = memMode ? 20 : 10;
       storage.addXP(child!.id, xp);
       storage.addSession({
@@ -135,6 +146,7 @@ export default function ReadingPage() {
       const newly = getNewBadges(child!.id, before);
       if (newly.length > 0) setNewBadges(newly);
     } else {
+      feedbackError();
       storage.addSession({
         childId: child!.id,
         surahNumber: surahNum,

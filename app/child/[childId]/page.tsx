@@ -14,6 +14,7 @@ import {
 import { getEarnedBadges } from "@/lib/badges";
 import { JourneyMap } from "@/components/JourneyMap";
 import { STARTER_SURAHS } from "@/lib/quran-api";
+import { getDueCount } from "@/lib/srs";
 
 export default function ChildJourneyPage() {
   const router = useRouter();
@@ -22,6 +23,7 @@ export default function ChildJourneyPage() {
   const [progress, setProgress] = useState<SurahProgress[]>([]);
   const [badgeCount, setBadgeCount] = useState(0);
   const [lastSession, setLastSession] = useState<Session | null>(null);
+  const [dueReviews, setDueReviews] = useState(0);
 
   useEffect(() => {
     const c = storage.getChild(params.childId);
@@ -33,6 +35,7 @@ export default function ChildJourneyPage() {
     setProgress(getAllProgress(c.id));
     setBadgeCount(getEarnedBadges(c.id).length);
     setLastSession(storage.getLastSession(c.id));
+    setDueReviews(getDueCount(c.id));
   }, [params.childId, router]);
 
   if (!child) return null;
@@ -98,6 +101,35 @@ export default function ChildJourneyPage() {
           )}
         </div>
       </section>
+
+      <div className="grid grid-cols-2 gap-2 mb-4">
+        <Link
+          href={`/child/${child.id}/review`}
+          className={`block rounded-2xl p-3 shadow-soft text-center active:scale-95 transition-transform ${
+            dueReviews > 0
+              ? "bg-gold/20 border-2 border-gold/40"
+              : "bg-white border border-masjid/5"
+          }`}
+        >
+          <p className="text-xl mb-0.5">🔁</p>
+          <p className="text-xs font-bold text-masjid-dark">المراجعة</p>
+          {dueReviews > 0 ? (
+            <p className="text-[10px] text-gold-dark font-bold">
+              {dueReviews} آية مستحقة
+            </p>
+          ) : (
+            <p className="text-[10px] text-masjid-dark/60">كله متراجع</p>
+          )}
+        </Link>
+        <Link
+          href="/voice-search"
+          className="block bg-white rounded-2xl p-3 shadow-soft text-center border border-masjid/5 active:scale-95 transition-transform"
+        >
+          <p className="text-xl mb-0.5">🔍</p>
+          <p className="text-xs font-bold text-masjid-dark">بحث بالصوت</p>
+          <p className="text-[10px] text-masjid-dark/60">دور على آية</p>
+        </Link>
+      </div>
 
       {lastSession && (() => {
         const surah = STARTER_SURAHS.find(

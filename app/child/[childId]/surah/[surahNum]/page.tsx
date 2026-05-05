@@ -97,6 +97,7 @@ export default function ReadingPage() {
       const form = new FormData();
       form.append("audio", blob, "recitation.webm");
       form.append("ayahText", current.text);
+      form.append("preferQuran", "true");
 
       const res = await fetch("/api/transcribe", { method: "POST", body: form });
       const data = await res.json();

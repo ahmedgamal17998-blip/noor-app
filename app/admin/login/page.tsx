@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { isSupabaseEnabled, signInWithPassword, signUpWithPassword } from "@/lib/supabase";
-import { checkIsAdmin } from "@/lib/auth/admin";
+import { checkIsAdmin, tryBootstrapAdmin } from "@/lib/auth/admin";
 
 type Mode = "login" | "signup";
 
@@ -30,13 +30,15 @@ export default function AdminLoginPage() {
       return;
     }
 
+    // Auto-bootstrap: if no admins exist yet, this user becomes owner.
+    // Also handles the case where their email was pre-added via SQL.
+    await tryBootstrapAdmin(email.trim().split("@")[0]);
+
     const admin = await checkIsAdmin();
     setBusy(false);
     if (!admin) {
       setError(
-        "الإيميل ده مش admin. أضيفيه في جدول admins في Supabase:\ninsert into admins (email, full_name, role) values ('" +
-          email.trim() +
-          "', 'Name', 'super_admin');",
+        "الإيميل ده مش admin. لو إنتي أول admin، تأكدي إن migration 0002 اتشغلت في Supabase.",
       );
       return;
     }

@@ -2,18 +2,36 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { isSupabaseEnabled, signInWithPassword, signUpWithPassword } from "@/lib/supabase";
+import {
+  isSupabaseEnabled,
+  signInWithPassword,
+  signUpWithPassword,
+  supabase,
+} from "@/lib/supabase";
 import { checkIsAdmin, tryBootstrapAdmin } from "@/lib/auth/admin";
 
 type Mode = "login" | "signup";
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const [mode, setMode] = useState<Mode>("login");
+  const [mode, setMode] = useState<Mode>("signup");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  const proceedAfterSession = async () => {
+    await tryBootstrapAdmin(email.trim().split("@")[0]);
+    const admin = await checkIsAdmin();
+    if (!admin) {
+      setError(
+        "الحساب اتعمل لكن مش admin. تأكدي إن migration 0003 اتشغلت في Supabase.",
+      );
+      setBusy(false);
+      return;
+    }
+    router.replace("/admin");
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,8 +39,40 @@ export default function AdminLoginPage() {
     setBusy(true);
     setError(null);
 
-    const action = mode === "signup" ? signUpWithPassword : signInWithPassword;
-    const { error, session } = await action(email.trim(), password);
+    if (mode === "login") {
+      const { error, session } = await signInWithPassword(email.trim(), password);
+      if (error || !session) {
+        setError(error ?? "حصلت مشكلة");
+        setBusy(false);
+        return;
+      }
+      await proceedAfterSession();
+      return;
+    }
+
+    // SIGNUP MODE
+    let { error, session } = await signUpWithPassword(email.trim(), password);
+
+    // If signup fails because user exists (with broken password), force-reset
+    // and retry. This requires migration 0003 to have been applied.
+    const errStr = (error ?? "").toLowerCase();
+    const looksBroken =
+      errStr.includes("already") ||
+      errStr.includes("invalid login") ||
+      errStr.includes("invalid credentials");
+
+    if (looksBroken && supabase) {
+      const { error: resetErr } = await supabase.rpc(
+        "force_reset_admin_account",
+        { p_email: email.trim() },
+      );
+      if (!resetErr) {
+        // Retry signup after deleting the broken row
+        const retry = await signUpWithPassword(email.trim(), password);
+        error = retry.error;
+        session = retry.session;
+      }
+    }
 
     if (error || !session) {
       setError(error ?? "حصلت مشكلة");
@@ -30,19 +80,7 @@ export default function AdminLoginPage() {
       return;
     }
 
-    // Auto-bootstrap: if no admins exist yet, this user becomes owner.
-    // Also handles the case where their email was pre-added via SQL.
-    await tryBootstrapAdmin(email.trim().split("@")[0]);
-
-    const admin = await checkIsAdmin();
-    setBusy(false);
-    if (!admin) {
-      setError(
-        "الإيميل ده مش admin. لو إنتي أول admin، تأكدي إن migration 0002 اتشغلت في Supabase.",
-      );
-      return;
-    }
-    router.replace("/admin");
+    await proceedAfterSession();
   };
 
   return (
@@ -52,7 +90,7 @@ export default function AdminLoginPage() {
           <div className="text-6xl mb-2">🌙</div>
           <h1 className="text-2xl font-bold">Admin Dashboard</h1>
           <p className="text-sm opacity-70 mt-1">
-            {mode === "login" ? "تسجيل دخول" : "إنشاء حساب admin جديد"}
+            {mode === "login" ? "تسجيل دخول" : "إنشاء حساب admin"}
           </p>
         </div>
 
@@ -109,14 +147,6 @@ export default function AdminLoginPage() {
               : "عندك حساب؟ سجلي دخول"}
           </button>
         </form>
-
-        <div className="text-xs opacity-50 text-center mt-8 space-y-2">
-          <p>قبل ما تسجلي دخول، لازم تضيفي الإيميل بتاعك في جدول admins:</p>
-          <code className="block bg-black/20 p-2 rounded text-[10px] whitespace-pre-wrap">
-            insert into admins (email, full_name, role){"\n"}
-            values (&apos;you@x.com&apos;, &apos;Name&apos;, &apos;super_admin&apos;);
-          </code>
-        </div>
       </div>
     </main>
   );

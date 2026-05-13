@@ -3,10 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { isSupabaseEnabled, sendOtp, verifyOtp, supabase } from "@/lib/supabase";
+import { isSupabaseEnabled, signUpWithPassword, supabase } from "@/lib/supabase";
 import { setParentPassword } from "@/lib/auth/parent-password";
 
-type Step = "info" | "otp" | "password" | "child";
+type Step = "info" | "password" | "child";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -14,9 +14,9 @@ export default function SignupPage() {
   const [form, setForm] = useState({
     fullName: "",
     email: "",
+    password: "",
     phone: "",
     city: "",
-    otp: "",
     parentPassword: "",
     childName: "",
     childAge: 7,
@@ -27,34 +27,21 @@ export default function SignupPage() {
 
   const submitInfo = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.fullName.trim() || !form.email.trim()) return;
+    if (!form.fullName.trim() || !form.email.trim() || form.password.length < 6) return;
     setBusy(true);
     setErr(null);
     if (!isSupabaseEnabled) {
-      setErr("Supabase غير مظبوط — راجعي الإعدادات");
+      setErr("Supabase غير مظبوط");
       setBusy(false);
       return;
     }
-    const { error } = await sendOtp(form.email.trim());
-    setBusy(false);
-    if (error) {
-      setErr(error);
-      return;
-    }
-    setStep("otp");
-  };
-
-  const submitOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (form.otp.length < 6) return;
-    setBusy(true);
-    setErr(null);
-    const { error, session } = await verifyOtp(form.email.trim(), form.otp);
+    const { error, session } = await signUpWithPassword(form.email.trim(), form.password);
     if (error || !session) {
-      setErr(error ?? "الكود غلط");
+      setErr(error ?? "حصلت مشكلة في إنشاء الحساب");
       setBusy(false);
       return;
     }
+    // Save mother profile
     if (supabase) {
       await supabase.from("mothers").upsert({
         id: session.user.id,
@@ -71,7 +58,7 @@ export default function SignupPage() {
   const submitPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (form.parentPassword.length < 4) {
-      setErr("كلمة السر لازم 4 حروف على الأقل");
+      setErr("كلمة سر ماما لازم 4 حروف على الأقل");
       return;
     }
     setBusy(true);
@@ -103,7 +90,7 @@ export default function SignupPage() {
     router.replace("/dashboard");
   };
 
-  const stepIdx = ["info", "otp", "password", "child"].indexOf(step);
+  const stepIdx = ["info", "password", "child"].indexOf(step);
 
   return (
     <main className="min-h-screen flex flex-col px-6 py-8 max-w-md mx-auto">
@@ -116,7 +103,7 @@ export default function SignupPage() {
       </header>
 
       <div className="flex justify-center gap-2 mb-6">
-        {[0, 1, 2, 3].map((i) => (
+        {[0, 1, 2].map((i) => (
           <span
             key={i}
             className={`h-2 w-8 rounded-full transition-all ${
@@ -130,15 +117,23 @@ export default function SignupPage() {
         <form onSubmit={submitInfo} className="space-y-3 flex-1 flex flex-col">
           <Field label="اسمك الكامل" value={form.fullName} onChange={(v) => setForm({ ...form, fullName: v })} />
           <Field label="الإيميل" type="email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} />
+          <Field
+            label="كلمة السر (٦ حروف على الأقل)"
+            type="password"
+            value={form.password}
+            onChange={(v) => setForm({ ...form, password: v })}
+          />
           <Field label="رقم التليفون (اختياري)" type="tel" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} />
           <Field label="المدينة (اختياري)" value={form.city} onChange={(v) => setForm({ ...form, city: v })} />
-          {err && <p className="text-xs text-wrong">{err}</p>}
+          {err && <p className="text-xs text-wrong bg-wrong/10 p-2 rounded">{err}</p>}
           <button
             type="submit"
-            disabled={!form.fullName.trim() || !form.email.trim() || busy}
-            className="mt-auto w-full bg-masjid text-sand font-bold py-4 rounded-3xl shadow-soft-lg active:scale-95 disabled:opacity-50"
+            disabled={
+              !form.fullName.trim() || !form.email.trim() || form.password.length < 6 || busy
+            }
+            className="mt-auto w-full bg-masjid text-sand font-bold py-4 rounded-3xl shadow-soft-lg disabled:opacity-50"
           >
-            {busy ? "..." : "ابعتي كود التحقق"}
+            {busy ? "..." : "التالي"}
           </button>
           <p className="text-center text-xs text-masjid-dark/60">
             عندك حساب؟{" "}
@@ -149,42 +144,17 @@ export default function SignupPage() {
         </form>
       )}
 
-      {step === "otp" && (
-        <form onSubmit={submitOtp} className="space-y-3 flex-1 flex flex-col">
-          <p className="text-sm text-masjid-dark/70 text-center">
-            بعتنا كود ٦ أرقام لـ <b>{form.email}</b>
-          </p>
-          <input
-            type="text"
-            inputMode="numeric"
-            maxLength={6}
-            value={form.otp}
-            onChange={(e) => setForm({ ...form, otp: e.target.value })}
-            placeholder="000000"
-            className="w-full bg-white border-2 border-masjid/10 rounded-2xl px-4 py-4 text-center text-3xl tracking-widest focus:border-masjid focus:outline-none"
-            autoFocus
-          />
-          {err && <p className="text-xs text-wrong">{err}</p>}
-          <button
-            type="submit"
-            disabled={form.otp.length < 6 || busy}
-            className="mt-auto w-full bg-masjid text-sand font-bold py-4 rounded-3xl shadow-soft-lg disabled:opacity-50"
-          >
-            {busy ? "..." : "تأكيد"}
-          </button>
-        </form>
-      )}
-
       {step === "password" && (
         <form onSubmit={submitPassword} className="space-y-3 flex-1 flex flex-col">
           <div className="bg-gold/10 rounded-2xl p-4">
-            <p className="text-sm text-masjid-dark font-bold">🔐 كلمة سر سرية</p>
+            <p className="text-sm text-masjid-dark font-bold">🔐 كلمة سر ماما الخاصة</p>
             <p className="text-xs text-masjid-dark/70 mt-1">
-              دي كلمة السر اللي هتدخليها لما الطفل يخلص خطوات التسميع والمهام. متعرفهاش له.
+              غير كلمة سر الحساب، دي كلمة السر اللي بتدخليها لما طفلك يخلص خطوة
+              التسميع أو المهام. متشاركيهاش معاه.
             </p>
           </div>
           <Field
-            label="كلمة السر (4 حروف+)"
+            label="كلمة سر ماما (٤ حروف+)"
             type="password"
             value={form.parentPassword}
             onChange={(v) => setForm({ ...form, parentPassword: v })}
@@ -241,6 +211,7 @@ export default function SignupPage() {
               ))}
             </div>
           </div>
+          {err && <p className="text-xs text-wrong">{err}</p>}
           <button
             type="submit"
             disabled={!form.childName.trim() || busy}

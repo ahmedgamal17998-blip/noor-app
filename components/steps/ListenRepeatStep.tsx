@@ -1,0 +1,119 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import type { SurahStep, Ayah } from "@/lib/db/types";
+import { feedbackSuccess, feedbackTap } from "@/lib/feedback";
+
+export function ListenRepeatStep({
+  step,
+  ayahs,
+  alreadyDone,
+  onComplete,
+}: {
+  step: SurahStep;
+  ayahs: Ayah[];
+  alreadyDone: number;
+  onComplete: () => void;
+}) {
+  const [round, setRound] = useState(alreadyDone);
+  const [idx, setIdx] = useState(0);
+  const [phase, setPhase] = useState<"listening" | "repeating" | "done">("listening");
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const target = step.required_completion_count;
+  const ayah = ayahs[idx];
+
+  useEffect(() => {
+    return () => {
+      audioRef.current?.pause();
+    };
+  }, []);
+
+  const play = () => {
+    if (!ayah?.audio_url) return;
+    feedbackTap();
+    const a = new Audio(ayah.audio_url);
+    audioRef.current = a;
+    setPhase("listening");
+    a.onended = () => setPhase("repeating");
+    a.onerror = () => setPhase("repeating");
+    void a.play();
+  };
+
+  const nextAyah = () => {
+    feedbackTap();
+    if (idx + 1 < ayahs.length) {
+      setIdx(idx + 1);
+      setPhase("listening");
+    } else {
+      const newRound = round + 1;
+      setRound(newRound);
+      if (newRound >= target) {
+        feedbackSuccess();
+        setPhase("done");
+        onComplete();
+      } else {
+        setIdx(0);
+        setPhase("listening");
+      }
+    }
+  };
+
+  if (!ayah) {
+    return <p className="text-masjid-dark/60">جاري التحميل...</p>;
+  }
+
+  return (
+    <div className="space-y-5">
+      <div className="text-center">
+        <div className="text-5xl mb-2">🎤</div>
+        <h2 className="text-xl font-bold text-masjid-dark">{step.step_title}</h2>
+        <p className="text-xs text-masjid-dark/60 mt-1">
+          الجولة {round + 1} من {target} · الآية {idx + 1} من {ayahs.length}
+        </p>
+      </div>
+
+      <div className="bg-white rounded-3xl p-6 shadow-soft border-2 border-gold/20 relative">
+        <span className="absolute -top-3 -right-3 w-10 h-10 rounded-full bg-gold text-white font-bold flex items-center justify-center shadow-soft text-sm">
+          {ayah.ayah_number}
+        </span>
+        <p dir="rtl" className="font-quran text-3xl leading-loose text-center text-masjid-dark">
+          {ayah.text_with_tashkeel}
+        </p>
+      </div>
+
+      <div className="flex flex-col items-center gap-3">
+        {phase === "listening" && (
+          <button
+            onClick={play}
+            className="bg-masjid text-sand font-bold px-8 py-4 rounded-full text-lg active:scale-95"
+          >
+            🔊 اسمع
+          </button>
+        )}
+        {phase === "repeating" && (
+          <>
+            <p className="text-center text-sm text-masjid-dark/70">
+              دلوقتي رددها بصوت عالي 🗣️
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={play}
+                className="bg-white border-2 border-masjid/20 text-masjid-dark font-bold px-5 py-3 rounded-full active:scale-95"
+              >
+                🔊 إعادة
+              </button>
+              <button
+                onClick={nextAyah}
+                className="bg-success text-white font-bold px-6 py-3 rounded-full active:scale-95"
+              >
+                ✓ رددت
+              </button>
+            </div>
+          </>
+        )}
+        {phase === "done" && <p className="text-success font-bold">ما شاء الله! ✨</p>}
+      </div>
+    </div>
+  );
+}

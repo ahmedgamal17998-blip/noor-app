@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { storage, type Mother, type Child } from "@/lib/storage";
 import { isSupabaseEnabled, signOut, getCurrentSession } from "@/lib/supabase";
+import { setParentPassword, hasParentPassword } from "@/lib/auth/parent-password";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -13,6 +14,10 @@ export default function SettingsPage() {
   const [editing, setEditing] = useState(false);
   const [newName, setNewName] = useState("");
   const [authed, setAuthed] = useState(false);
+  const [hasPassword, setHasPassword] = useState(false);
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [passwordSaving, setPasswordSaving] = useState(false);
 
   useEffect(() => {
     const m = storage.getMother();
@@ -24,7 +29,23 @@ export default function SettingsPage() {
     setNewName(m.name);
     setChildren(storage.getChildren());
     void getCurrentSession().then((s) => setAuthed(Boolean(s)));
+    void hasParentPassword().then(setHasPassword);
   }, [router]);
+
+  const saveParentPassword = async () => {
+    if (newPassword.length < 4) return;
+    setPasswordSaving(true);
+    const ok = await setParentPassword(newPassword);
+    setPasswordSaving(false);
+    if (ok) {
+      setHasPassword(true);
+      setShowPasswordForm(false);
+      setNewPassword("");
+      alert("اتحفظت ✓");
+    } else {
+      alert("حصلت مشكلة في الحفظ");
+    }
+  };
 
   const doSignOut = async () => {
     if (!confirm("هتسجلي خروج؟ بياناتك المحفوظة على السيرفر هتفضل آمنة.")) return;
@@ -161,6 +182,54 @@ export default function SettingsPage() {
           </p>
         </div>
       </Section>
+
+      {isSupabaseEnabled && authed && (
+        <Section title="🔐 كلمة سر ماما">
+          <div className="bg-gold/10 border border-gold/30 rounded-3xl p-4 mb-2">
+            <p className="text-xs text-masjid-dark/70 leading-relaxed">
+              كلمة السر دي بتدخليها لما الطفل يخلص خطوة التسميع أو حكي القصة أو
+              مهمة الحياة. متشاركيهاش معاه!
+            </p>
+          </div>
+          {!showPasswordForm ? (
+            <button
+              onClick={() => setShowPasswordForm(true)}
+              className="w-full bg-masjid text-sand font-bold py-3 rounded-2xl active:scale-95"
+            >
+              {hasPassword ? "تغيير كلمة السر" : "اضبطي كلمة السر دلوقتي"}
+            </button>
+          ) : (
+            <div className="space-y-2">
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="4 حروف على الأقل"
+                className="w-full bg-white border-2 border-masjid/10 rounded-2xl px-4 py-3 focus:border-masjid focus:outline-none"
+                autoFocus
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setShowPasswordForm(false);
+                    setNewPassword("");
+                  }}
+                  className="flex-1 bg-sand-dark py-3 rounded-2xl font-semibold"
+                >
+                  إلغاء
+                </button>
+                <button
+                  onClick={saveParentPassword}
+                  disabled={newPassword.length < 4 || passwordSaving}
+                  className="flex-1 bg-masjid text-sand py-3 rounded-2xl font-bold disabled:opacity-50"
+                >
+                  {passwordSaving ? "..." : "حفظ"}
+                </button>
+              </div>
+            </div>
+          )}
+        </Section>
+      )}
 
       {isSupabaseEnabled && authed && (
         <Section title="الحساب">

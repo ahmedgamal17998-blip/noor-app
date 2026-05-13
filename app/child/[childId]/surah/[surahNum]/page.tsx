@@ -258,7 +258,7 @@ function StepRenderer({
         />
       );
     case "story":
-      return <StoryStep step={step} story={story} onComplete={onComplete} />;
+      return <StoryStep story={story} onComplete={onComplete} />;
     case "listen_repeat":
       return (
         <ListenRepeatStep

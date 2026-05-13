@@ -1,15 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { SurahStep, SurahStory } from "@/lib/db/types";
+import type { SurahStory } from "@/lib/db/types";
 import { feedbackSuccess } from "@/lib/feedback";
 
 export function StoryStep({
-  step,
   story,
   onComplete,
 }: {
-  step: SurahStep;
   story: SurahStory | null;
   onComplete: () => void;
 }) {

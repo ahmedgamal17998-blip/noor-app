@@ -9,7 +9,6 @@ import type {
   SurahStep,
   ChildSurahProgress,
   StepCompletion,
-  MissionCompletion,
   AvatarItem,
   ChildAvatarItem,
   Achievement,

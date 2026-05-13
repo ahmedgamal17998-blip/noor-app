@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase, getCurrentSession } from "@/lib/supabase";
-import { storage, type Mother as LocalMother, type Child as LocalChild } from "@/lib/storage";
+import { storage, type Child as LocalChild } from "@/lib/storage";
 import type { Mother, Child } from "@/lib/db/types";
 import { ChildCard } from "@/components/ChildCard";
 

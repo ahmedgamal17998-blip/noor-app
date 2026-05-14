@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { SurahStep, Ayah } from "@/lib/db/types";
 import { feedbackSuccess, feedbackTap } from "@/lib/feedback";
+import { StepVideo } from "./StepVideo";
 
 export function ListenRepeatStep({
   step,
@@ -72,6 +73,8 @@ export function ListenRepeatStep({
           الجولة {round + 1} من {target} · الآية {idx + 1} من {ayahs.length}
         </p>
       </div>
+
+      <StepVideo url={step.video_url} />
 
       <div className="bg-white rounded-3xl p-6 shadow-soft border-2 border-gold/20 relative">
         <span className="absolute -top-3 -right-3 w-10 h-10 rounded-full bg-gold text-white font-bold flex items-center justify-center shadow-soft text-sm">

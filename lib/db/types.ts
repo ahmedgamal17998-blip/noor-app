@@ -129,6 +129,7 @@ export type SurahStep = {
   xp_reward: number;
   display_order: number;
   is_active: boolean;
+  video_url: string | null;
 };
 
 export type ChildSurahProgress = {

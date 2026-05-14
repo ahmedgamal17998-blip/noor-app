@@ -13,6 +13,7 @@ import type {
   ComprehensionQuestion,
   StepType,
 } from "@/lib/db/types";
+import { VideoUpload } from "@/components/admin/VideoUpload";
 
 type Tab = "info" | "ayahs" | "story" | "missions" | "questions" | "steps";
 
@@ -549,6 +550,7 @@ const STEP_TYPES: Array<{ type: StepType; label: string; defaultTitle: string }>
 function StepsTab({ surahId }: { surahId: string }) {
   const [steps, setSteps] = useState<SurahStep[]>([]);
   const [adding, setAdding] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const load = async () => {
     if (!supabase) return;
@@ -614,43 +616,67 @@ function StepsTab({ surahId }: { surahId: string }) {
       <div className="space-y-2">
         {steps.map((s, i) => {
           const meta = STEP_TYPES.find((t) => t.type === s.step_type);
+          const expanded = expandedId === s.id;
           return (
             <div
               key={s.id}
-              className="bg-sand rounded-2xl p-3 border border-masjid/5 flex items-start gap-3"
+              className="bg-sand rounded-2xl border border-masjid/5"
             >
-              <div className="flex flex-col gap-1">
-                <button
-                  disabled={i === 0}
-                  onClick={() => move(s.id, -1)}
-                  className="text-xs disabled:opacity-30"
-                >
-                  ↑
-                </button>
-                <span className="text-xs text-masjid-dark/50 text-center">{i + 1}</span>
-                <button
-                  disabled={i === steps.length - 1}
-                  onClick={() => move(s.id, 1)}
-                  className="text-xs disabled:opacity-30"
-                >
-                  ↓
-                </button>
+              <div className="flex items-start gap-3 p-3">
+                <div className="flex flex-col gap-1">
+                  <button
+                    disabled={i === 0}
+                    onClick={() => move(s.id, -1)}
+                    className="text-xs disabled:opacity-30"
+                  >
+                    ↑
+                  </button>
+                  <span className="text-xs text-masjid-dark/50 text-center">{i + 1}</span>
+                  <button
+                    disabled={i === steps.length - 1}
+                    onClick={() => move(s.id, 1)}
+                    className="text-xs disabled:opacity-30"
+                  >
+                    ↓
+                  </button>
+                </div>
+                <div className="flex-1">
+                  <p className="font-bold text-masjid-dark">
+                    {meta?.label} — {s.step_title}
+                  </p>
+                  {s.step_description && (
+                    <p className="text-xs text-masjid-dark/70 mt-1">{s.step_description}</p>
+                  )}
+                  <p className="text-xs text-masjid-dark/60 mt-1">
+                    ⭐ {s.xp_reward} XP · يحتاج {s.required_completion_count}×
+                    {s.requires_mother_approval && " · يتطلب تأكيد ماما 🔐"}
+                    {s.video_url && " · 📹 فيديو"}
+                  </p>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <button
+                    onClick={() => setExpandedId(expanded ? null : s.id)}
+                    className="bg-masjid/10 text-masjid-dark text-xs font-bold px-2 py-1 rounded"
+                  >
+                    {expanded ? "إخفاء" : "تعديل"}
+                  </button>
+                  <button
+                    onClick={() => remove(s.id)}
+                    className="text-wrong text-sm"
+                  >
+                    🗑️
+                  </button>
+                </div>
               </div>
-              <div className="flex-1">
-                <p className="font-bold text-masjid-dark">
-                  {meta?.label} — {s.step_title}
-                </p>
-                {s.step_description && (
-                  <p className="text-xs text-masjid-dark/70 mt-1">{s.step_description}</p>
-                )}
-                <p className="text-xs text-masjid-dark/60 mt-1">
-                  ⭐ {s.xp_reward} XP · يحتاج {s.required_completion_count}×
-                  {s.requires_mother_approval && " · يتطلب تأكيد ماما 🔐"}
-                </p>
-              </div>
-              <button onClick={() => remove(s.id)} className="text-wrong text-sm">
-                🗑️
-              </button>
+              {expanded && (
+                <EditStepForm
+                  step={s}
+                  onSaved={() => {
+                    setExpandedId(null);
+                    void load();
+                  }}
+                />
+              )}
             </div>
           );
         })}
@@ -750,6 +776,75 @@ function AddStepForm({
           إضافة الخطوة
         </button>
       </div>
+    </div>
+  );
+}
+
+function EditStepForm({
+  step,
+  onSaved,
+}: {
+  step: SurahStep;
+  onSaved: () => void;
+}) {
+  const [title, setTitle] = useState(step.step_title);
+  const [desc, setDesc] = useState(step.step_description ?? "");
+  const [count, setCount] = useState(String(step.required_completion_count));
+  const [xp, setXp] = useState(String(step.xp_reward));
+  const [needsApproval, setNeedsApproval] = useState(step.requires_mother_approval);
+  const [videoUrl, setVideoUrl] = useState<string | null>(step.video_url);
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    if (!supabase) return;
+    setSaving(true);
+    await supabase
+      .from("surah_steps")
+      .update({
+        step_title: title,
+        step_description: desc || null,
+        required_completion_count: Number(count),
+        xp_reward: Number(xp),
+        requires_mother_approval: needsApproval,
+        video_url: videoUrl,
+      })
+      .eq("id", step.id);
+    setSaving(false);
+    onSaved();
+  };
+
+  return (
+    <div className="border-t border-masjid/10 p-3 space-y-2 bg-white/50">
+      <Field label="العنوان" value={title} onChange={setTitle} />
+      <TextArea label="الوصف" value={desc} onChange={setDesc} rows={2} />
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="عدد المرات" type="number" value={count} onChange={setCount} />
+        <Field label="نقاط XP" type="number" value={xp} onChange={setXp} />
+      </div>
+      <label className="flex items-center gap-2 text-sm text-masjid-dark">
+        <input
+          type="checkbox"
+          checked={needsApproval}
+          onChange={(e) => setNeedsApproval(e.target.checked)}
+          className="accent-masjid"
+        />
+        يحتاج تأكيد ماما (كلمة السر)
+      </label>
+
+      <div>
+        <label className="text-xs font-semibold text-masjid-dark/70 block mb-1">
+          📹 فيديو الخطوة (اختياري)
+        </label>
+        <VideoUpload currentUrl={videoUrl} onUploaded={setVideoUrl} />
+      </div>
+
+      <button
+        onClick={save}
+        disabled={saving}
+        className="w-full bg-masjid text-sand py-2 rounded-xl text-sm font-bold disabled:opacity-50"
+      >
+        {saving ? "بنحفظ..." : "💾 حفظ التعديلات"}
+      </button>
     </div>
   );
 }

@@ -43,6 +43,9 @@ const config: Config = {
         soft: "0 4px 20px rgba(13, 122, 63, 0.08)",
         "soft-lg": "0 8px 30px rgba(13, 122, 63, 0.12)",
       },
+      animation: {
+        "pulse-slow": "pulse 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+      },
     },
   },
   plugins: [],

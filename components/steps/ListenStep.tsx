@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { SurahStep, Ayah } from "@/lib/db/types";
 import { feedbackSuccess } from "@/lib/feedback";
+import { StepVideo } from "./StepVideo";
 
 export function ListenStep({
   step,
@@ -80,6 +81,8 @@ export function ListenStep({
           <p className="text-sm text-masjid-dark/60 mt-1">{step.step_description}</p>
         )}
       </div>
+
+      <StepVideo url={step.video_url} />
 
       <div className="bg-white rounded-3xl p-6 shadow-soft border border-masjid/10 text-center">
         <p className="text-xs text-masjid-dark/60 mb-2">

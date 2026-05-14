@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { SurahStep } from "@/lib/db/types";
 import { MotherPasswordModal } from "@/components/MotherPasswordModal";
 import { feedbackSuccess } from "@/lib/feedback";
+import { StepVideo } from "./StepVideo";
 
 export function MotherApprovalStep({
   step,
@@ -46,6 +47,8 @@ export function MotherApprovalStep({
           <p className="text-sm text-masjid-dark/60 mt-1">{step.step_description}</p>
         )}
       </div>
+
+      <StepVideo url={step.video_url} />
 
       <div className="bg-gold/10 rounded-3xl p-5 border border-gold/30">
         <p className="text-masjid-dark leading-relaxed">{prompt}</p>

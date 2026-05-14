@@ -32,32 +32,85 @@ export default function DashboardPage() {
     if (supabase) {
       const session = await getCurrentSession();
       if (session) {
-        const [{ data: motherData }, { data: childrenData }] = await Promise.all([
-          supabase.from("mothers").select("*").eq("id", session.user.id).maybeSingle(),
-          supabase
-            .from("children")
+        // Ensure a mother row exists for this user (admins/owners may not have one)
+        let { data: motherData } = await supabase
+          .from("mothers")
+          .select("*")
+          .eq("id", session.user.id)
+          .maybeSingle();
+
+        if (!motherData) {
+          // Auto-create mother row from session email
+          const localM = storage.getMother();
+          const fullName =
+            localM?.name ??
+            (session.user.email?.split("@")[0] ?? "Mother");
+          await supabase.from("mothers").upsert({
+            id: session.user.id,
+            email: session.user.email,
+            name: fullName,
+            full_name: fullName,
+          });
+          const refetch = await supabase
+            .from("mothers")
             .select("*")
-            .eq("mother_id", session.user.id)
-            .order("created_at"),
-        ]);
-        const mother = motherData as Mother | null;
-        if (mother) {
-          setMotherName(mother.full_name || mother.email);
-          setChildren(
-            ((childrenData ?? []) as Child[]).map((c) => ({
-              id: c.id,
-              name: c.name,
-              age: c.age,
-              totalXP: c.total_xp ?? 0,
-              createdAt: new Date(c.created_at).getTime(),
-            })),
-          );
-          setLoading(false);
-          return;
+            .eq("id", session.user.id)
+            .maybeSingle();
+          motherData = refetch.data;
         }
+
+        // Auto-migrate any localStorage children to Supabase (one-time)
+        const localChildren = storage.getChildren();
+        if (localChildren.length > 0) {
+          const { data: existing } = await supabase
+            .from("children")
+            .select("name")
+            .eq("mother_id", session.user.id);
+          const existingNames = new Set(
+            ((existing ?? []) as Array<{ name: string }>).map((c) => c.name),
+          );
+          const toMigrate = localChildren.filter(
+            (c) => !existingNames.has(c.name),
+          );
+          if (toMigrate.length > 0) {
+            await supabase.from("children").insert(
+              toMigrate.map((c) => ({
+                mother_id: session.user.id,
+                name: c.name,
+                age: c.age,
+                total_xp: c.totalXP ?? 0,
+              })),
+            );
+          }
+          // Clear localStorage children so we don't migrate again
+          storage.setChildren([]);
+        }
+
+        // Now fetch fresh children
+        const { data: childrenData } = await supabase
+          .from("children")
+          .select("*")
+          .eq("mother_id", session.user.id)
+          .order("created_at");
+
+        const mother = motherData as Mother | null;
+        setMotherName(
+          mother?.full_name || mother?.email || session.user.email || "أم",
+        );
+        setChildren(
+          ((childrenData ?? []) as Child[]).map((c) => ({
+            id: c.id,
+            name: c.name,
+            age: c.age,
+            totalXP: c.total_xp ?? 0,
+            createdAt: new Date(c.created_at).getTime(),
+          })),
+        );
+        setLoading(false);
+        return;
       }
     }
-    // Fallback to localStorage (v1)
+    // Fallback to localStorage (v1, when Supabase not configured)
     const m = storage.getMother();
     if (!m) {
       router.replace("/login");

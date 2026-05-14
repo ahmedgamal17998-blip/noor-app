@@ -66,4 +66,4 @@ create policy "step-videos admin delete" on storage.objects
 -- ──────── Done ────────
 select
   (select count(*) from storage.buckets where id = 'step-videos') as bucket_created,
-  (select count(*) from storage.policies where bucket_id is null or true) as note;
+  (select count(*) from pg_policies where schemaname = 'storage' and tablename = 'objects' and policyname like 'step-videos%') as policies_created;

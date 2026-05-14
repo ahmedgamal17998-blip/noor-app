@@ -20,25 +20,44 @@ export function ListenRepeatStep({
   const [idx, setIdx] = useState(0);
   const [phase, setPhase] = useState<"listening" | "repeating" | "done">("listening");
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const idxRef = useRef(0);
+  const roundRef = useRef(alreadyDone);
 
   const target = step.required_completion_count;
   const ayah = ayahs[idx];
 
+  // Single audio element; iOS-safe: src change re-uses the unlocked element
   useEffect(() => {
+    const audio = new Audio();
+    audio.preload = "auto";
+    audioRef.current = audio;
+
+    const onEnded = () => setPhase("repeating");
+    const onError = () => setPhase("repeating");
+    audio.addEventListener("ended", onEnded);
+    audio.addEventListener("error", onError);
+
     return () => {
-      audioRef.current?.pause();
+      audio.removeEventListener("ended", onEnded);
+      audio.removeEventListener("error", onError);
+      audio.pause();
+      audio.src = "";
     };
   }, []);
 
+  useEffect(() => {
+    idxRef.current = idx;
+  }, [idx]);
+  useEffect(() => {
+    roundRef.current = round;
+  }, [round]);
+
   const play = () => {
-    if (!ayah?.audio_url) return;
+    if (!ayah?.audio_url || !audioRef.current) return;
     feedbackTap();
-    const a = new Audio(ayah.audio_url);
-    audioRef.current = a;
     setPhase("listening");
-    a.onended = () => setPhase("repeating");
-    a.onerror = () => setPhase("repeating");
-    void a.play();
+    audioRef.current.src = ayah.audio_url;
+    void audioRef.current.play().catch(() => setPhase("repeating"));
   };
 
   const nextAyah = () => {
@@ -89,7 +108,8 @@ export function ListenRepeatStep({
         {phase === "listening" && (
           <button
             onClick={play}
-            className="bg-masjid text-sand font-bold px-8 py-4 rounded-full text-lg active:scale-95"
+            className="bg-masjid text-sand font-bold px-8 py-4 rounded-full text-lg active:scale-95 touch-manipulation select-none"
+            style={{ WebkitTapHighlightColor: "transparent" }}
           >
             🔊 اسمع
           </button>
@@ -102,13 +122,15 @@ export function ListenRepeatStep({
             <div className="flex gap-2">
               <button
                 onClick={play}
-                className="bg-white border-2 border-masjid/20 text-masjid-dark font-bold px-5 py-3 rounded-full active:scale-95"
+                className="bg-white border-2 border-masjid/20 text-masjid-dark font-bold px-5 py-3 rounded-full active:scale-95 touch-manipulation select-none"
+                style={{ WebkitTapHighlightColor: "transparent" }}
               >
                 🔊 إعادة
               </button>
               <button
                 onClick={nextAyah}
-                className="bg-success text-white font-bold px-6 py-3 rounded-full active:scale-95"
+                className="bg-success text-white font-bold px-6 py-3 rounded-full active:scale-95 touch-manipulation select-none"
+                style={{ WebkitTapHighlightColor: "transparent" }}
               >
                 ✓ رددت
               </button>

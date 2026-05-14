@@ -20,51 +20,89 @@ export function ListenStep({
   const [currentAyahIdx, setCurrentAyahIdx] = useState(0);
   const [playing, setPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  // Use refs so audio callbacks (which run outside user gesture) see fresh values
+  const idxRef = useRef(0);
+  const playedRef = useRef(alreadyDone);
+  const targetRef = useRef(step.required_completion_count);
+  const ayahsRef = useRef<Ayah[]>(ayahs);
 
   const target = step.required_completion_count;
   const ayah = ayahs[currentAyahIdx];
 
+  // Sync refs with props/state
   useEffect(() => {
-    return () => {
-      audioRef.current?.pause();
-    };
-  }, []);
+    ayahsRef.current = ayahs;
+  }, [ayahs]);
+  useEffect(() => {
+    targetRef.current = step.required_completion_count;
+  }, [step.required_completion_count]);
 
-  const playAll = () => {
-    if (ayahs.length === 0) return;
-    setCurrentAyahIdx(0);
-    setPlaying(true);
-    playAt(0);
-  };
-
-  const playAt = (idx: number) => {
-    const a = ayahs[idx];
-    if (!a || !a.audio_url) {
-      finishOneRound();
-      return;
-    }
-    const audio = new Audio(a.audio_url);
+  // Create a single Audio element on mount.
+  // iOS Safari requires audio to be "unlocked" via user gesture, but subsequent
+  // src changes on the SAME element are allowed (this is the fix for the mobile bug).
+  useEffect(() => {
+    const audio = new Audio();
+    audio.preload = "auto";
     audioRef.current = audio;
-    audio.onended = () => {
-      if (idx + 1 < ayahs.length) {
-        setCurrentAyahIdx(idx + 1);
-        playAt(idx + 1);
+
+    const handleEnded = () => {
+      const nextIdx = idxRef.current + 1;
+      const allAyahs = ayahsRef.current;
+      if (nextIdx < allAyahs.length) {
+        idxRef.current = nextIdx;
+        setCurrentAyahIdx(nextIdx);
+        const next = allAyahs[nextIdx];
+        if (next?.audio_url && audioRef.current) {
+          audioRef.current.src = next.audio_url;
+          void audioRef.current.play().catch(() => finishOneRound());
+        } else {
+          finishOneRound();
+        }
       } else {
         finishOneRound();
       }
     };
-    audio.onerror = () => finishOneRound();
-    void audio.play();
-  };
+    const handleError = () => finishOneRound();
+
+    audio.addEventListener("ended", handleEnded);
+    audio.addEventListener("error", handleError);
+
+    return () => {
+      audio.removeEventListener("ended", handleEnded);
+      audio.removeEventListener("error", handleError);
+      audio.pause();
+      audio.src = "";
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const finishOneRound = () => {
     setPlaying(false);
-    const newCount = playedCount + 1;
+    const newCount = playedRef.current + 1;
+    playedRef.current = newCount;
     setPlayedCount(newCount);
-    if (newCount >= target) {
+    if (newCount >= targetRef.current) {
       feedbackSuccess();
       onComplete();
     }
+  };
+
+  const playAll = () => {
+    if (!audioRef.current || ayahsRef.current.length === 0) return;
+    const first = ayahsRef.current[0];
+    if (!first?.audio_url) {
+      finishOneRound();
+      return;
+    }
+    idxRef.current = 0;
+    setCurrentAyahIdx(0);
+    setPlaying(true);
+    audioRef.current.src = first.audio_url;
+    void audioRef.current.play().catch((err) => {
+      // Most likely iOS blocking — still mark one round to avoid stuck UI
+      console.warn("audio play failed:", err);
+      finishOneRound();
+    });
   };
 
   const stop = () => {
@@ -112,14 +150,16 @@ export function ListenStep({
         {!playing ? (
           <button
             onClick={playAll}
-            className="bg-masjid text-sand font-bold px-8 py-4 rounded-full text-lg active:scale-95"
+            className="bg-masjid text-sand font-bold px-8 py-4 rounded-full text-lg active:scale-95 touch-manipulation select-none"
+            style={{ WebkitTapHighlightColor: "transparent" }}
           >
             ▶️ تشغيل
           </button>
         ) : (
           <button
             onClick={stop}
-            className="bg-wrong text-white font-bold px-8 py-4 rounded-full text-lg active:scale-95"
+            className="bg-wrong text-white font-bold px-8 py-4 rounded-full text-lg active:scale-95 touch-manipulation select-none"
+            style={{ WebkitTapHighlightColor: "transparent" }}
           >
             ⏹️ إيقاف
           </button>

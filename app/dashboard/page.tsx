@@ -233,20 +233,47 @@ function AddChildModal({
   const [age, setAge] = useState(7);
   const [gender, setGender] = useState("boy");
   const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
     setBusy(true);
+    setErr(null);
     if (supabase) {
       const session = await getCurrentSession();
       if (session) {
-        await supabase.from("children").insert({
+        // Ensure mother row exists before FK insert
+        const { data: mom } = await supabase
+          .from("mothers")
+          .select("id")
+          .eq("id", session.user.id)
+          .maybeSingle();
+        if (!mom) {
+          const { error: mErr } = await supabase.from("mothers").upsert({
+            id: session.user.id,
+            email: session.user.email,
+            name: session.user.email?.split("@")[0] ?? "Mother",
+            full_name: session.user.email?.split("@")[0] ?? "Mother",
+          });
+          if (mErr) {
+            setErr("مش قادرين نحفظ بياناتك: " + mErr.message);
+            setBusy(false);
+            return;
+          }
+        }
+        const { error: childErr } = await supabase.from("children").insert({
           mother_id: session.user.id,
           name: name.trim(),
           age,
           gender,
         });
+        if (childErr) {
+          console.error("child insert failed:", childErr);
+          setErr("مش قادرين نحفظ الطفل: " + childErr.message);
+          setBusy(false);
+          return;
+        }
         setBusy(false);
         onAdded();
         return;
@@ -309,6 +336,9 @@ function AddChildModal({
             </button>
           ))}
         </div>
+        {err && (
+          <p className="text-xs text-wrong bg-wrong/10 p-2 rounded">{err}</p>
+        )}
         <div className="flex gap-2">
           <button
             type="button"

@@ -41,15 +41,22 @@ export default function SignupPage() {
       setBusy(false);
       return;
     }
-    // Save mother profile
+    // Save mother profile — MUST succeed before continuing (FK for children)
     if (supabase) {
-      await supabase.from("mothers").upsert({
+      const { error: motherErr } = await supabase.from("mothers").upsert({
         id: session.user.id,
         email: form.email.trim(),
         full_name: form.fullName.trim(),
+        name: form.fullName.trim(),
         phone: form.phone.trim() || null,
         city: form.city.trim() || null,
       });
+      if (motherErr) {
+        console.error("mother upsert failed:", motherErr);
+        setErr("مش قادرين نحفظ بياناتك: " + motherErr.message);
+        setBusy(false);
+        return;
+      }
     }
     setBusy(false);
     setStep("password");
@@ -77,15 +84,29 @@ export default function SignupPage() {
     if (!form.childName.trim()) return;
     setBusy(true);
     setErr(null);
-    if (!supabase) return;
+    if (!supabase) {
+      setErr("Supabase غير مفعّل");
+      setBusy(false);
+      return;
+    }
     const { data: session } = await supabase.auth.getSession();
-    if (!session.session) return;
-    await supabase.from("children").insert({
+    if (!session.session) {
+      setErr("الجلسة منتهية، سجّلي دخول تاني");
+      setBusy(false);
+      return;
+    }
+    const { error: childErr } = await supabase.from("children").insert({
       mother_id: session.session.user.id,
       name: form.childName.trim(),
       age: form.childAge,
       gender: form.childGender,
     });
+    if (childErr) {
+      console.error("child insert failed:", childErr);
+      setErr("مش قادرين نحفظ الطفل: " + childErr.message);
+      setBusy(false);
+      return;
+    }
     setBusy(false);
     router.replace("/dashboard");
   };
